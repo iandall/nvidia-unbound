@@ -230,6 +230,7 @@ function istrue(){
 }
 
 function binary_opt_istrue(){
+    local invert value
     [[ ${1#--no-} == $1 ]]; invert=$?
     istrue "$2" || [[ -z $2 ]]; value=$?
     (( (invert ^ value) == 0 ))
@@ -254,6 +255,8 @@ function read_config(){
 	declare -a fields
 	split fields "=" "$line"
 	key=$(trim_str "${fields[0]}")
+
+	# skip if comment or empty line
 	{ [[ ${key#\#} != $key ]] || [[ $key == "" ]];} && continue
 	opt=${key#--}
 	opt=${opt#no-}
@@ -832,6 +835,7 @@ if [[ "${arg_map[kernel-modules]}" == t ]]; then
     [[ -d $NVIDIA_ROOT/$build_dir ]] || { error cd:  $NVIDIA_ROOT/$build_dir: no such file or directory; exit 1;}
     cd $NVIDIA_ROOT/$build_dir
     
+    kernel_mod_success=
     for kernel_modlib in /lib/modules/${arg_map[kernel-name]:-*}; do
 	kernel_version=${kernel_modlib##*/}
 	if [[ -n ${arg_map[log-path]} ]]; then
@@ -844,7 +848,19 @@ if [[ "${arg_map[kernel-modules]}" == t ]]; then
 	    echo "Failure to build kernel modules for kernel $kernel_version. Check $logfile for details." >&2
             continue
 	}
-	cp -pv *.ko $dest
+	cmd cp -pv *.ko $dest &&  kernel_mod_success=t
     done
 
+    # Create a link, eg from 560 -> 560.35.100  and from 5XX -> 560.35.100.
+    # This allows for LD_LIBRARY_PATH=/opt/nvidia/5XX to always get
+    # the latest driver for this hardware.
+    #
+    # Any failure is most likely in kernel module generation, so only
+    # create the links if the kernel modules were sucessfully built
+    # for at least one kernel
+
+    if [[ "${arg_map[set-default]}" = t  && kernel_mod_success==t ]]; then
+	ln -sf ${release} ${PREFIX}/${release:%%.*}
+	ln -sf ${release} ${PREFIX}/${release:0:1}XX
+    fi
 fi
