@@ -252,15 +252,21 @@ function set_binary_opt(){
 
 function read_config(){
     while read line; do
-	declare -a fields
-	split fields "=" "$line"
-	key=$(trim_str "${fields[0]}")
+	local eq=
+	local key=${line%%=*}
+	local value=
+	local opt
+	if [[ $key != $line ]]; then
+	    value=${line#*=}
+	    eq=t
+	fi
+	key=$(trim_str "$key")
 
-	# skip if comment or empty line
+	# skip if comment or emty line
 	{ [[ ${key#\#} != $key ]] || [[ $key == "" ]];} && continue
 	opt=${key#--}
 	opt=${opt#no-}
-	local value=$(trim_str "${fields[1]}")
+	value=$(trim_str "$value")
 	if [[ -n ${binary_long_opt_map[$opt]+t} ]]; then
 	    if binary_opt_istrue --"$key" "$value"; then
 		value=t
@@ -270,7 +276,7 @@ function read_config(){
 	elif [[ -z ${param_long_opt_map[$opt]+t} ]]; then
 	    warn "Unknown parameter $opt: $line in config"
 	    continue
-	elif [[ -n ${line##*=*} ]]; then
+	elif [[ $eq == t ]]; then
 	    # If there was an "=" there is a value, value is possibly
 	    # an empty string.
 	    warn "Option $opt expects a parameter: $line in config"
@@ -804,16 +810,6 @@ if [[ ${arg_map[kernel-modules-only]} != t ]]; then
     done < <(sed -n '9,$p' "$NVIDIA_ROOT/.manifest" )
 fi
 
-if [[ "${arg_map[symlink]}" = t ]]; then
-    ln -s ${VPREFIX} ${PREFIX}/${release:0:1}XX
-fi
-    
-if [[ "${arg_map[symlink]}" = t ]]; then
-    if [ -h ${PREFIX}/latest${legacy:+-legacy} ]; then
-	/bin/rm ${PREFIX}/latest${legacy:+-legacy}
-    fi
-    ln -s ${VPREFIX} ${PREFIX}/latest${legacy:+-legacy}
-fi
 
 
 if [[ "${arg_map[kernel-modules]}" == t ]]; then
@@ -834,7 +830,7 @@ if [[ "${arg_map[kernel-modules]}" == t ]]; then
 
     [[ -d $NVIDIA_ROOT/$build_dir ]] || { error cd:  $NVIDIA_ROOT/$build_dir: no such file or directory; exit 1;}
     cd $NVIDIA_ROOT/$build_dir
-    
+
     kernel_mod_success=
     for kernel_modlib in /lib/modules/${arg_map[kernel-name]:-*}; do
 	kernel_version=${kernel_modlib##*/}
@@ -848,7 +844,7 @@ if [[ "${arg_map[kernel-modules]}" == t ]]; then
 	    echo "Failure to build kernel modules for kernel $kernel_version. Check $logfile for details." >&2
             continue
 	}
-	cmd cp -pv *.ko $dest &&  kernel_mod_success=t
+	cmd cp -pv *.ko $dest && kernel_mod_success=t
     done
 
     # Create a link, eg from 560 -> 560.35.100  and from 5XX -> 560.35.100.
