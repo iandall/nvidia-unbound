@@ -1,0 +1,73 @@
+#!/bin/bash
+
+PROG=${0##/}
+USAGE="Usage: $PROG -v VERSION [-m MESSAGE] [-h]"
+
+LONG_USAGE="
+$USAGE
+
+Set the version in the VERSION file equal to VERSION, commit it and
+create a consistent annotated tag. Run this command prior to a release.
+
+Options:
+	-v, --version=VERSION
+		The new version string.
+
+	-m, --message=MESSAGE
+		The commit and tag message. If not specified, git will start an editor to
+		edit the commit message as normal.
+
+	-h|--help
+		print this text and exit
+
+Mandatory arguments to long options are mandatory for short options too.
+"
+
+args=$(getopt -o 'v:m:h' -l 'version:,message:,help' -- "$@") || { echo "$LONG_USAGE" >&2; exit 1;}
+
+eval set -- "$args"
+while [ $# -gt 0 ]; do
+    case $1 in
+	-v|--version)
+	    shift
+	    version=$1
+	    ;;
+	-m|--message)
+	    shift
+	    message=$1
+	    ;;
+	
+	-h|--help)
+	    echo "$LONG_USAGE"
+	    exit 0
+	    ;;
+	--)
+	    shift; break
+	    ;;
+	-*)
+	    echo "Unknown option $1"$'\n'"$USAGE" >&2; exit 1
+	    exit 1
+	    ;;
+    esac
+    shift
+done
+
+[[ -n $version ]] || { echo "The --version option is required!"$'\n\n'"$USAGE" >&2; exit 1;}
+	  
+# The order of updating the VERSION file, committing and tagging
+# matters!  This way, an archive can be created with "git archive"
+# which can be unpacked, built and installed outside a git tree.
+# Inside a git tree versions are derived from "git describe" and will
+# be vary as additional commits are made.
+
+# Update VERSION file with $version
+make version="$version"	VERSION
+
+git add VERSION
+
+# Commit VERSION
+git commit ${message+-m "$message"}
+git tag -a "$version" ${message+-m "$message"}
+
+# Now git describe will show version in VERSION
+
