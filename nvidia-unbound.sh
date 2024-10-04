@@ -1,7 +1,5 @@
 #!/bin/bash
-shopt -s varredir_close
-
-VERSION=1.0.1
+VERSION=@@VERSION@@
 
 PROG=${0##*/}
 
@@ -185,10 +183,14 @@ function make_set(){
     done
 }
 
+# Only optons in binary_long_opt_map or param_long_opt_map are permitted in config files
+
+# These otions can take a --no-option form and an optional argument
 binary_long_opts="kernel-modules kernel-modules-only install-compat32-libs nvidia-modprobe wine-files kernel-module-source dkms drm libglx-indirect install-libglvnd install-libegl install-libgl systemd set-default"
 declare -A binary_long_opt_map
 make_set binary_long_opt_map $binary_long_opts
 
+# These options require an argument
 param_long_opts="config prefix log-path kernel-name exclude use kernel-module-type"
 declare -A param_long_opt_map
 make_set param_long_opt_map $param_long_opts verbose
@@ -251,6 +253,7 @@ function set_binary_opt(){
 
 
 function read_config(){
+    local line
     while read line; do
 	local eq=
 	local key=${line%%=*}
@@ -268,23 +271,24 @@ function read_config(){
 	opt=${opt#no-}
 	value=$(trim_str "$value")
 	if [[ -n ${binary_long_opt_map[$opt]+t} ]]; then
+	    # A permitted binary opt
 	    if binary_opt_istrue --"$key" "$value"; then
 		value=t
 	    else
 		value=f
 	    fi
-	elif [[ -z ${param_long_opt_map[$opt]+t} ]]; then
+	elif [[ -n ${param_long_opt_map[$opt]+t} ]]; then
+	    # A required parameter opt
+	    if [[ $eq != t ]]; then
+		# If there was no "=" there is no value, not even an empty string
+		warn "Option $opt expects a parameter: $line in config"
+		continue
+	    fi
+	else
 	    warn "Unknown parameter $opt: $line in config"
 	    continue
-	elif [[ $eq == t ]]; then
-	    # If there was an "=" there is a value, value is possibly
-	    # an empty string.
-	    warn "Option $opt expects a parameter: $line in config"
-	    continue
 	fi
-
 	arg_map[$opt]="$value"
-
     done
 }
 
@@ -306,7 +310,7 @@ read_config <<-EOF
 	no-install-libegl
 	no-install-libgl
 	no-systemd
-	no-set-default
+	set-default
 	verbose=1
 EOF
 
@@ -454,7 +458,7 @@ case $# in
 	}
 	;;
     *)
-	error "Too many arguments"
+	error "Extra arguments: $@"
 	error "USAGE"
 	exit 1
 	;;
@@ -499,8 +503,12 @@ fi
 VPREFIX=${arg_map[prefix]}/${release}
 
 # Not sure how useful dkms is with nvidia-unbound
-# dkms command line options to specify alternate trees, but you can't put them
-# in the conf file. You could specify that in a /etc/kernel-install.d file, but then
+# dkms command line options to specify alternate trees, e.g:
+#
+#     dkms  --force --dkmstree /opt/nvidia-test/dkms --sourcetree /opt/nvidia-test/560.35.03/src -m nvidia/560.35.03 --verbose build
+#
+# but you can't put them in the dkms.conf file. You can specify in the /etc/dkms/framework.conf, but that applies to all dkms modules, not just these ones.
+# You could specify in the command line that in a /etc/kernel-install.d file, but then
 # might as well just put nvidia-unbound -K -k KERNEL_VERSION
 function dkms_conf(){
     local -i i=0
@@ -639,7 +647,7 @@ if [[ ${arg_map[kernel-modules-only]} != t ]]; then
 
     actions[APPLICATION_PROFILE]=$(encode copy /usr/share/ndivia )
     actions[CUDA_ICD]=$(encode copy-update /etc/OpenCL/vendors)
-    actions[DKMS_CONF]=$(encode dkms-copy /usr/src/nvidia-${release})
+    actions[DKMS_CONF]=$(encode dkms-copy $opt/src/nvidia-${release})
     actions[DOCUMENTATION]=$(encode copy "$opt/share/doc")
     actions[DOT_DESKTOP]=$(encode dot-desktop-copy "/usr/local/share/applications")
     actions[EGL_EXTERNAL_PLATFORM_JSON]=$(encode copy-update /usr/share/egl/egl_external_platform.d)
@@ -649,7 +657,7 @@ if [[ ${arg_map[kernel-modules-only]} != t ]]; then
     actions[INSTALLER_BINARY]=$(encode noop)
     actions[INTERNAL_UTILITY_BINARY]=$(encode copy /usr/lib/nvidia "" /32)
     actions[INTERNAL_UTILITY_DATA]=$(encode copy /usr/lib/nvidia)
-    actions[KERNEL_MODULE_SRC]=$(encode copy /usr/src/nvidia-${release})
+    actions[KERNEL_MODULE_SRC]=$(encode copy $opt/src/nvidia-${release})
     actions[MANPAGE]=$(encode copy "$opt/share/man")
     actions[NVIDIA_MODPROBE]=$(encode copy)
     actions[NVIDIA_MODPROBE_MANPAGE]=$(encode copy "$opt/share/man")
@@ -791,9 +799,9 @@ if [[ ${arg_map[kernel-modules-only]} != t ]]; then
 		    simple_cmd cp --update $src $dst
 		    ;;
 		symlink)
-		    simple_cmd ln -s $dst ${target}
+		    simple_cmd ln -sf $dst ${target}
 		    ;;
-		dmks-copy)
+		dkms-copy)
 		    res=$(cmd  dkms_conf $modules > $target 2>&1)  || { error $res; false;}
 		    ;;
 		dot-desktop-copy)
@@ -838,7 +846,7 @@ if [[ "${arg_map[kernel-modules]}" == t ]]; then
 	dest=$VPREFIX/lib64/modules/$kernel_version/kernel/drivers/video/
 	simple_cmd mkdir -p $dest || continue
 
-	IGNORE_CC_MISMATCH=t make KERNEL_MODLIB=$kernel_modlib -j 12 clean module >> $logfile 2>&1 || {
+	IGNORE_CC_MISMATCH=t make KERNEL_MODLIB=$kernel_modlib -j $(nproc) clean module >> $logfile 2>&1 || {
 	    echo "Failure to build kernel modules for kernel $kernel_version. Check $logfile for details." >&2
             continue
 	}
