@@ -23,7 +23,7 @@ confdir ?= ${prefix}/
 
 DOCS := doc/nvidia-unbound.1
 
-all: nvidia-unbound $(DOCS)
+all: nvidia-unbound
 
 .PHONY: all
 
@@ -40,9 +40,16 @@ nvidia-unbound:	nvidia-unbound.sh VERSION
 
 install: all
 	mkdir -p $(DESTDIR}$(bindir)
-	mkdir -p $(DESTDIR}$(mandir)
-	install -m 0755 nvidia-unbound $(DESTDIR)$(bindir)/nvidia-unbound
+	mkdir -p $(DESTDIR}$(mandir)/man1
+	install -m 0755 nvidia-unbound $(DESTDIR)$(bindir)/
+	install -m 0644 nvidia-unbound.1  $(DESTDIR)$(mandir)/man1/
 
-
-doc/nvidia-unbound.1: nvidia-unbound 
+nvidia-unbound.1: nvidia-unbound 
 	help2man --no-info nvidia-unbound -o $@
+
+
+doc: nvidia-unbound.1
+
+ifneq ($(enable_documentation),no)
+all: doc
+endif
