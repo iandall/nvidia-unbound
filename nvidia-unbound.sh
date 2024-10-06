@@ -1,107 +1,125 @@
 #!/bin/bash
 VERSION=@@VERSION@@
 
+
+# Copyright (C) Ian Dall 2024
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3, or (at your option)
+# any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, see <https://www.gnu.org/licenses/>.
+
+COPYRIGHT="\
+Copyright (C) Ian Dall 2024
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+"
+
+AUTHOR="Written by: Ian Dall <ian@beware.dropbear.id.au>"
 PROG=${0##*/}
 
 USAGE="\
-Usage:
-	$PROG [options] <archive>
+Usage:  $PROG [OPTION] ARCHIVE
+   or:  $PROG [-h|--help|-u <path>|--use <path>|d|--dump]
 
-	$PROG [-h|--help|-u <path>|--use <path>|d|--dump]
-
-An alternative installer for Nvidia Linux drivers. ARCHIVE is a self
-unpacking Nvidia driver archive, normally of the form
-NVIDIA-Linux-<arch>-<version>.run.
-
-Mandatory arguments to long options are mandatory for short options
-too. The case indepenent values True, t, Yes, Y, 1 and \"\" are all
-equivalent for BOOL argument. Any other value is false. A
-\"--no-\" prefix complements BOOL. Thus --option=f is equivalaent to
---no-option=t or --no-option, and --option is equivalent to
---no-option=f (not recommended). The equal sign man be omitted (getopt(1)).
+An alternative installer for Nvidia Linux drivers.
 
 Options:
 
-   	-c, --config=FILE
-		configuation FILE
+Mandatory arguments to long options are mandatory for short options
+too. The case interdependent values True, t, Yes, Y, 1 and \"\" are all
+equivalent for BOOL argument. Any other value is false. A
+\"--no-\" prefix complements BOOL. Thus --option=f is equivalaent to
+--no-option=t or --no-option, and --option is equivalent to
+--no-option=f (not recommended). The equal sign may be omitted (getopt(1)).
 
-	-q, --quiet
-		equivalent to --verbose=0
+        -c, --config=FILE
+                    configuation FILE
 
-	-u, --use=PATH
-		use existing unpacked package at PATH
+        -q, --quiet equivalent to --verbose=0
 
-	-v, --verbose[=LEVEL]
-	    	set verbosity 0 < LEVEL < 10. With no argument, increment verbosity
+        -u, --use=PATH
+                    use existing unpacked package at PATH
 
-	-t, --trace
-		trace commands which modify the filesystem. Use with --dry-run to
-		preview actions which would be taken.
+        -v, --verbose[=LEVEL]
+                    set verbosity 0 < LEVEL < 10. With no argument, increment verbosity
 
-	-P, --prefix=PREFIX
-		installation path prefix (default /opt/nvidia)
+        -t, --trace trace commands which modify the filesystem. Use with --dry-run to
+                    preview actions which would be taken.
 
-	-K, --kernel-modules-only
-		compile and install kernel modules only (no userland)
+        -P, --prefix=PREFIX
+                    installation path prefix (default /opt/nvidia)
+
+        -K, --kernel-modules-only
+                    compile and install kernel modules only (no userland)
 
         -k, --kernel-name KERNEL_VERSION
-		compile specified kernel module only. Otherwise do all installed kernels
+                    compile specified kernel module only. Otherwise do all installed kernels
 
-	-M, --kernel-module-type=KERNEL_MODULE_TYPE
-		Whether to build the "open" or "proprietary" drivers. If argument is ""
-		assume "open" if available, otherwise "proprietary".
+        -M, --kernel-module-type=KERNEL_MODULE_TYPE
+		    whether to build the \"open\" or \"proprietary\" drivers. If argument is \"\"
+                    prefer \"open\" if available, otherwise \"proprietary\".
 
-	-U, --no-kernel-modules[=BOOL}
-		install utilities and user libraries only
+        -U, --no-kernel-modules[=BOOL}
+                    install utilities and user libraries only
 
-	-D, --no-set-default[=BOOL]
-		don't create symlinks to make this Nvidia relase the default
+        -D, --no-set-default[=BOOL]
+                    don't create symlinks to make this Nvidia release the default
 
-	--check
-		Check an existing installation.
+        --check    check an existing installation.
 
-	--dry-run
-		don't actually run comands which modify the installation
+        --dry-run   don't actually run comands which modify the installation
 
-	--install-compat32-libs[=BOOL]
-		whether to install x86 32bit compability libraries
+        --install-compat32-libs[=BOOL]
+                    whether to install x86 32bit compability libraries
 
-	--nvidia-modprobe[=BOOL]
-		whether to install setuid executable to load kernel modules
+        --nvidia-modprobe[=BOOL]
+                    whether to install setuid executable to load kernel modules
 
-	--wine-files[=BOOL]
-		whether to install dll to support ngx under WINE
+        --wine-files[=BOOL]
+                    whether to install dll to support ngx under WINE
 
-	--kernel-module-source[=BOOL]
-		whether to install kernel module source files. May be required for DKMS
+        --kernel-module-source[=BOOL]
+                    whether to install kernel module source files. May be required for DKMS
 
-	--dkms[=BOOL]
-		whether to install DKMS configuration file. Also whether to use DKMS
-		to build kernel modules
+        --dkms[=BOOL]
+                    whether to install DKMS configuration file. Also whether to use DKMS
+                    to build kernel modules
 
-	--libglx-indirect[=BOOL]
-		whether to install a libGLX-indirect.so.0 link
+        --libglx-indirect[=BOOL]
+                    whether to install a libGLX-indirect.so.0 link
 
-	--install-libglvnd[=BOOL]
-		whether to install libglvnd client libraries
+        --install-libglvnd[=BOOL]
+                    whether to install libglvnd client libraries
 
-	--install-libegl[=BOOL]
-		whether to install libegl client libraries
+        --install-libegl[=BOOL]
+                    whether to install libegl client libraries
 
-	--install-libgl[=BOOL]
-		whether to install libgl client libraries
+        --install-libgl[=BOOL]
+                    whether to install libgl client libraries
 
-	-d, --dump-config
-		dump effective configuration
+        -d, --dump-config
+                    dump effective configuration
 
-	-I, --info
-		print information (meta-data) from the Nvidida driver archive
+        -I, --info
+                    print information (meta-data) from the Nvidida driver archive
 
-	-V, --version
-		print the $PROG version and exit (c.f. --info)
+        -V, --version
+                    print the $PROG version and exit (c.f. --info)
 
-	-h|--help)
-		print this text and exit
+        -h|--help)
+                    print this text and exit
+
+ARCHIVE is a self unpacking Nvidia driver archive, typically of the form
+NVIDIA-Linux-<arch>-<version>.run.
 "
 
 export TMPDIR=/var/tmp
@@ -392,7 +410,7 @@ while [ $# -gt 0 ]; do
 	    shift
 	    ;;
 	-V|--version)
-	    echo $VERSION
+	    echo ${VERSION}$'\n\n'${COPYRIGHT}$'\n\n'${AUTHOR}
 	    exit 0
 	    ;;
 	-D)
