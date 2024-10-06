@@ -44,8 +44,8 @@ install: all
 	install -m 0755 nvidia-unbound $(DESTDIR)$(bindir)/
 	install -m 0644 nvidia-unbound.1  $(DESTDIR)$(mandir)/man1/
 
-nvidia-unbound.1: nvidia-unbound 
-	help2man --no-info nvidia-unbound -o $@
+nvidia-unbound.1: nvidia-unbound help2man.inc
+	help2man --no-info --include help2man.inc nvidia-unbound -o $@
 
 
 doc: nvidia-unbound.1
