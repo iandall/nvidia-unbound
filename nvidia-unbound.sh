@@ -1,6 +1,8 @@
 #!/bin/bash
-VERSION=@@VERSION@@
 
+# Install
+VERSION=@@VERSION@@
+CONFIG='@@CONFIG_DIR@@/nvidia-unbound.conf'
 
 # Copyright (C) Ian Dall 2024
 #
@@ -106,6 +108,13 @@ equivalent for BOOL argument. Any other value is false. A
         --install-libgl[=BOOL]
                     whether to install libgl client libraries
 
+        --override-file-type-destination=TYPE_DEST
+                    where TYPE_DEST=<FILE_TYPE>:<DESTINATION>. Install all files of type
+                    FILE_TYPE in DESTINATION. This option may be given multiple times.
+
+	--exclude=FILE_TYPES
+                    where FILE_TYPES is a comma separated list of file types to exclude from installation.
+
         -d, --dump-config
                     dump effective configuration
 
@@ -129,13 +138,13 @@ logfile=/dev/stderr
 declare -A arg_map
 arg_map[verbose]=1
 
-error(){
+function error(){
     echo "Error: $*" >>${logfile}
     if [[ ${logfile} != "/dev/stderr" ]]; then
 	echo "$*" >&${stderr}
     fi
 }
-warn(){
+function warn(){
     if (( ${arg_map[verbose]} > 0 )); then
 	echo "Warning: $*" >>${logfile}
 	if [[ ${logfile} != "/dev/stderr" ]]; then
@@ -144,7 +153,7 @@ warn(){
     fi
 }
 
-info(){
+function info(){
     if (( ${arg_map[verbose]} > 1 )); then
 	echo "$*" >>${logfile}
 	if [[ ${logfile} != "/dev/stderr" ]]; then
@@ -154,7 +163,7 @@ info(){
 }
 
 
-info_level(){
+function info_level(){
     if (( ${arg_map[verbose]} >= $1 )); then
 	shift
 	echo "$*" >>${logfile}
@@ -164,12 +173,12 @@ info_level(){
     fi
 }
 
-cmd(){
+function cmd(){
     [[ ${arg_map[trace]} == t ]] && info_level 1 "$*"
     [[ ${arg_map[dry-run]} == t ]] || "$@"
 }
 
-simple_cmd(){
+function simple_cmd(){
     local res
     res=$(cmd "$@" 2>&1) || { error $res; return 1;}
 }
@@ -213,17 +222,18 @@ param_long_opts="config prefix log-path kernel-name exclude use kernel-module-ty
 declare -A param_long_opt_map
 make_set param_long_opt_map $param_long_opts verbose
 
+
+
 args=$(getopt -o 'c:dqu:v::tP:K::k:M:l:U::D::IVh'\
 	      -l $(param_long_opts_gen $param_long_opts)\
 	      -l $(binary_long_opts_gen $binary_long_opts)\
-	      -l 'dry-run,trace,quiet,verbose::,dump-config,check,info,version,help'\
+	      -l 'override-file-type-destination:,dry-run,trace,quiet,verbose::,dump-config,check,info,version,help'\
 	      -- "$@")
 
 if [ $? -ne 0 ]; then
     error "$USAGE"
     exit 1
 fi
-
 
 function split(){
     declare -n var=$1
@@ -270,6 +280,17 @@ function set_binary_opt(){
 }
 
 
+
+declare -A override
+function override_file_type(){
+    local -a fields
+    local type=${1%%:*}
+    local dest=${1#*:}
+    override[$type]=$dest
+}
+
+
+
 function read_config(){
     local line
     while read line; do
@@ -288,7 +309,11 @@ function read_config(){
 	opt=${key#--}
 	opt=${opt#no-}
 	value=$(trim_str "$value")
-	if [[ -n ${binary_long_opt_map[$opt]+t} ]]; then
+	if [[ $opt == override-file-type-destination ]]; then
+	    # handle specially
+	    override_file_type "$value"
+	    continue
+	elif [[ -n ${binary_long_opt_map[$opt]+t} ]]; then
 	    # A permitted binary opt
 	    if binary_opt_istrue --"$key" "$value"; then
 		value=t
@@ -312,7 +337,7 @@ function read_config(){
 
 # Default configuration
 read_config <<-EOF
-	config=/usr/local/etc/nvidia-unbound.conf
+	config=$CONFIG
 	log-path=/var/log/nvidia-installer
 	prefix=/opt/nvidia
 	no-install-compat32-libs
@@ -430,6 +455,14 @@ while [ $# -gt 0 ]; do
 	-I|--info)
 	    arg_map[info]=t
 	    ;;
+	--exclude)
+	    shift
+	    arg_map[exclude]=$1
+	    ;;
+	--override-file-type-destination)
+	    shift
+	    override_file_type "$1"
+	    ;;
 	-h|--help)
 	   echo "$USAGE"
 	   exit 0
@@ -455,7 +488,10 @@ done
 	value=${arg_map[$key]}
 	echo "$key = $value"
     done | sort -k 1,1
-
+    for arg in ${override[@]}; do
+	echo "overide-file-type-destination = $arg"
+    done
+    
     exit 0
 }
 
@@ -551,11 +587,18 @@ function dkms_conf(){
 }
 
 if [[ ${arg_map[kernel-modules-only]} != t ]]; then
-    declare -a exclude_list
+    declare -a exclude_list	# A list of exclude patterns
 
+    declare -A extra_exclusions; make_set extra_exclusions ${arg_map[exclude]//,/ }
+    
     function exclude_test(){
 	declare -n _entry=$1
 	declare -a pattern
+	if [[ ${extra_exclusions[${_entry[2]}]+t} ]]; then
+	    info "Excluding by exclude ${_entry[2]} option: ${_entry[*]}"
+	    return 0
+	fi
+	
 	for p in "${exclude_list[@]}"; do
 	    eval pattern=\($p\)
 
@@ -568,7 +611,7 @@ if [[ ${arg_map[kernel-modules-only]} != t ]]; then
 		continue
 	    else
 		# All fields match
-		info "Excluding by ${pattern[0]}=${arg_map[${pattern[0]}]}: ${fields[*]}"
+		info "Excluding by ${pattern[0]}=${arg_map[${pattern[0]}]}: ${_entry[*]}"
 		return 0
 	    fi
 	done
@@ -730,8 +773,14 @@ if [[ ${arg_map[kernel-modules-only]} != t ]]; then
 	src=${fields[0]}
 	mode=${fields[1]}
 	declare -i i=3
-
+	
 	dst=${action[1]}
+	if [[ -n ${override[$action_type]} ]]; then
+	    dst=${override[$action_type]}
+	    info "Overriding destination for $src by \"override-file-type-destination=$action_type:$dst\" option: ${fields[*]}" 
+	fi
+	
+	
 	part=${action[4]:+${action[4]}} # Default
 	case ${fields[3]} in
 	    NATIVE)
@@ -880,7 +929,7 @@ if [[ "${arg_map[kernel-modules]}" == t ]]; then
     # for at least one kernel
 
     if [[ "${arg_map[set-default]}" = t  && kernel_mod_success==t ]]; then
-	ln -sf ${release} ${PREFIX}/${release:%%.*}
-	ln -sf ${release} ${PREFIX}/${release:0:1}XX
+	ln -sf ${release} ${arg_map[prefix]}/${release%%.*}
+	ln -sf ${release} ${arg_map[prefix]}/${release:0:1}XX
     fi
 fi
