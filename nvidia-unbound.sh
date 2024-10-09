@@ -344,7 +344,7 @@ read_config <<-EOF
 	no-nvidia-modprobe
 	no-wine-files
 	no-kernel-module-source
-	no-kernel-modules
+	kernel-modules
 	kernel-module-type=
 	no-dkms
 	drm
@@ -355,6 +355,7 @@ read_config <<-EOF
 	no-systemd
 	set-default
 	verbose=1
+	exclude=INSTALLER_BINARY
 EOF
 
 eval set -- "$args"
@@ -705,7 +706,6 @@ if [[ ${arg_map[kernel-modules-only]} != t ]]; then
     actions[GLX_MODULE_SYMLINK]=$(encode symlink "$opt/lib64/xorg/modules")
     actions[SYSTEMD_UNIT_SYMLINK]=$(encode symlink "/usr/lib/systemd/system")
     actions[UTILITY_BINARY_SYMLINK]=$(encode symlink "$opt/bin")
-
     actions[APPLICATION_PROFILE]=$(encode copy /usr/share/ndivia )
     actions[CUDA_ICD]=$(encode copy-update /etc/OpenCL/vendors)
     actions[DKMS_CONF]=$(encode dkms-copy $opt/src/nvidia-${release})
@@ -886,7 +886,6 @@ if [[ ${arg_map[kernel-modules-only]} != t ]]; then
 fi
 
 if [[ "${arg_map[kernel-modules]}" == t ]]; then
-    set -x
     build_dir=kernel-open
     case ${arg_map[kernel-module-type]} in
 	open)
@@ -913,7 +912,7 @@ if [[ "${arg_map[kernel-modules]}" == t ]]; then
 	dest=$VPREFIX/lib64/modules/$kernel_version/kernel/drivers/video/
 	simple_cmd mkdir -p $dest || continue
 
-	IGNORE_CC_MISMATCH=t make KERNEL_MODLIB=$kernel_modlib -j $(nproc) clean module >> $logfile 2>&1 || {
+	IGNORE_CC_MISMATCH=t cmd make KERNEL_MODLIB=$kernel_modlib -j $(nproc) clean module >> $logfile 2>&1 || {
 	    echo "Failure to build kernel modules for kernel $kernel_version. Check $logfile for details." >&2
             continue
 	}
@@ -928,8 +927,8 @@ if [[ "${arg_map[kernel-modules]}" == t ]]; then
     # create the links if the kernel modules were sucessfully built
     # for at least one kernel
 
-    if [[ "${arg_map[set-default]}" = t  && kernel_mod_success==t ]]; then
-	ln -sf ${release} ${arg_map[prefix]}/${release%%.*}
-	ln -sf ${release} ${arg_map[prefix]}/${release:0:1}XX
+    if [[ "${arg_map[set-default]}" == t  && $kernel_mod_success == t ]]; then
+	cmd ln -snf ${release} ${arg_map[prefix]}/${release%%.*}
+	cmd ln -snf ${release} ${arg_map[prefix]}/${release:0:1}XX
     fi
 fi
