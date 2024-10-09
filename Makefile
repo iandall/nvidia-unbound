@@ -19,7 +19,7 @@ endif
 prefix ?= /usr/local
 bindir ?= ${prefix}/bin
 mandir ?= ${prefix}/share/man
-confdir ?= ${prefix}/
+confdir ?= ${prefix}/etc
 
 DOCS := doc/nvidia-unbound.1
 
@@ -35,17 +35,16 @@ VERSION:
 endif
 
 nvidia-unbound:	nvidia-unbound.sh VERSION
-	sed -e '1,10s/@@VERSION@@/$(version)/' nvidia-unbound.sh > nvidia-unbound
+	sed -e '1,10s/@@VERSION@@/$(version)/' -e '1,10s;@@CONFIG_DIR@@;$(confdir);' nvidia-unbound.sh > nvidia-unbound
 	@chmod 0755 nvidia-unbound
 
 install: all
-	mkdir -p $(DESTDIR}$(bindir)
-	mkdir -p $(DESTDIR}$(mandir)/man1
+	install -d -m 0755  $(DESTDIR)$(bindir) $(DESTDIR)$(mandir)/man1
 	install -m 0755 nvidia-unbound $(DESTDIR)$(bindir)/
 	install -m 0644 nvidia-unbound.1  $(DESTDIR)$(mandir)/man1/
 
-nvidia-unbound.1: nvidia-unbound 
-	help2man --no-info nvidia-unbound -o $@
+nvidia-unbound.1: nvidia-unbound help2man.inc
+	help2man --no-info --include help2man.inc nvidia-unbound -o $@
 
 
 doc: nvidia-unbound.1

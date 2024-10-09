@@ -1,0 +1,13 @@
+#!/bin/bash
+if [ $(arch) = x86_64 ]; then ext=64; fi 
+NV_CLASS=$(/usr/local/sbin/nv-class)
+if  [ "$NV_CLASS" = "C" ]; then
+    NV_CLASS=latest
+fi
+if [ -n "$NV_CLASS" ]; then
+    dir=$(readlink -nm /opt/nvidia/$NV_CLASS)
+    echo NV_PATH=$dir/bin$ext
+    echo NV_LIBRARY_PATH=$dir/lib$ext
+    echo NV_MAJ=$NV_CLASS
+fi > /run/session-environment
+

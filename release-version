@@ -61,11 +61,11 @@ done
 # be vary as additional commits are made.
 
 # Update VERSION file with $version
-make version="$version"	VERSION
+make version="$version"	VERSION nvidia-unbound.1
 
-git add VERSION
+git add VERSION nvidia-unbound.1
 
-# Commit VERSION
+# Commit
 git commit ${message+-m "$message"}
 git tag -a "$version" ${message+-m "$message"}
 

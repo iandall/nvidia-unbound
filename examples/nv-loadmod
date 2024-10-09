@@ -1,0 +1,33 @@
+#!/bin/sh
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+set -e
+class=$(/usr/local/sbin/nv-class)
+[ "$class" = "C" ] && class="latest"
+[ $(arch) = x86_64 ] && libext=64
+remove=
+while [ $# -gt 0 ]; do
+    case $1 in
+	-r)
+	    remove=t
+	    ;;
+	*)
+	    break
+	    ;;
+    esac
+    shift
+done
+
+name=$1
+driver=/opt/nvidia/$class$ext/lib$libext/modules/$(uname -r)/kernel/drivers/video/$name.ko
+if [ "$remove" = t ]; then
+    /sbin/lsmod | grep -q "^$name " && /sbin/rmmod $driver
+    for d in $(modinfo -F depends $driver | tr '[,]' '[ ]'); do
+	modprobe -r $d
+    done
+else
+    for d in $(modinfo -F depends $driver | tr '[,]' '[ ]'); do
+	modprobe $d
+    done
+    /sbin/lsmod | grep -q "^name " || /sbin/insmod $driver
+fi
+

@@ -1,0 +1,14 @@
+[Unit]
+Description=Establish environment for Nvidia video drivers
+After=remote-fs.target
+Before=multi-user.target
+ConditionKernelCommandLine=modprobe.blacklist=nouveau
+
+[Install]
+WantedBy=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/etc/systemd/nv-environment
+RemainAfterExit=yes
+
