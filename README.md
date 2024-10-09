@@ -11,8 +11,8 @@ perform *OpenGL* rendering.
 
 Nvidia offer a linux driver installer which can be downloaded from
 <https://www.nvidia.com/en-us/drivers/>. Many linux distributions or
-3rd party providers package the Nvidia drivers essentially duplicating
-the effect of downloading and running the Nvidia installer but more
+3rd party providers package the Nvidia drivers, essentially duplicating
+the effect of downloading and running the Nvidia installer, but more
 conveniently. So why the need for another installer? 
 
   * Nvidia drivers don't like to co-exist with *nouveau* or even other
@@ -54,14 +54,14 @@ The command `make install` will, by default, build and  install the
 `nvidia-unbound` script and documentation under
 `/usr/local`. Or:
 
-    make
-    make install
+		make
+		make install
 
 Alternate locations can be specified with
 `prefix=<location`. Rebuilding the man page requires
 [`help2man`](ftp://ftp.gnu.org/gnu/help2man/), however a pre-built man
 page is included. Rebuilding the manpage can be suppressed (and the
-dependency on `help2man` avoided) with `enable_documentation=no`.
+dependency on `help2man` avoided) by running make with `enable_documentation=no`.
 
 Note that `prefix` here refers to the location where _Nvidia Unbound_
 itself is installed and has no bearing on the locaton where the Nivida
@@ -71,12 +71,15 @@ _Nvidia Unbound_ is implemented as as shell script and for
 testing purposes can be invoked stand alone (without installation).
 
 ## Installing Nvidia driver components ##
-Firstly download the desired driver archive from [the Nvidia web
+Firstly download the desired driver archive from the [Nvidia web
 site](https://www.nvidia.com/en-us/drivers/) which will result in a
 file normally of the form `NVIDIA-Linux-<arch>-<version>.run`.
 
-Installation can be as simple as `nvidia-unbound
-NVIDIA-Linux-<arch>-<version>.run`. This will unpack the Nividia
+Installation can be as simple as
+
+		nvidia-unbound NVIDIA-Linux-<arch>-<version>.run
+
+This will unpack the Nividia
 driver archive into a temporary directory and install the driver
 according to the default options.
 
@@ -92,13 +95,13 @@ configuration parameters. The exceptions are:
 dry-run, trace, quiet, dump-config, check, info, version and help.
 
 A desired set of options can be made the default by
-```
-	nvidia-unbound [OPTIONS] --dump > /usr/local/etc/nvidia-unbound.conf
-```
+
+		nvidia-unbound [OPTIONS] --dump > /usr/local/etc/nvidia-unbound.conf
+
 Initially it may be wise to run
-```
-	nvidia-unbound --trace --dry-run
-```
+
+		nvidia-unbound --trace --dry-run
+
 to see what action _Nvidia Unbound_ will take.
 
 ### What goes Where? ###
@@ -109,8 +112,8 @@ files the Nvidia installer creates are listed in a manifest file
 manifest has a Source location, Mode and Type. Each Type has its own,
 potentially different install location and other fields define
 sub-directories, symbolic link targets etc. Nvidia Unbound parses the
-manifest file and the target locations can be customised for each
-Type.
+manifest file to know what to do with each file. The target locations
+can be customised for each Type.
 
 Some files do not need to be installed at all and are excluded by default.
 
@@ -127,10 +130,10 @@ requires multiple releases to be installed. For immutable root files
 systems, additional configuration is required. For example:
 
    ```
-        mkdir -p /opt/ndvidia/lib/firmware
-        cp -ar /lib/firmware/nvidia /opt/ndvidia/lib/firmware
-        rm -rf /lib/firmware/nvidia
-        ln -s /opt/ndvidia/lib/firmware/nvidia /lib/firmware/nvidia
+		mkdir -p /opt/ndvidia/lib/firmware
+		cp -ar /lib/firmware/nvidia /opt/ndvidia/lib/firmware
+		rm -rf /lib/firmware/nvidia
+   		ln -s /opt/ndvidia/lib/firmware/nvidia /lib/firmware/nvidia
    ```
    can be done once (when the immutable root filesystem is created). Thereafter,
    it should be possible to install new releases without touching the root file system.
@@ -139,19 +142,21 @@ systems, additional configuration is required. For example:
 have a release number in the full pathnames (for example
 `/etc/OpenCL/vendors/nvidia.icd`) pose additional problems. These
 files do not generally change from release to release. _Nvidia Unbound_
-uses a replace-if-newer strategy for these files
+uses a replace-if-newer strategy for these files. For immutable filesystems see item 2 above.
 
-Some files are not needed at all and are not installed by default. These are (with the effective option [like-so]):
+Some files are not needed at all and are not installed by default. These are (with the effective option shown [like-so]):
 *  [no-install-compat32-libs] 32 bit compatability libraries (for 32 bit applications)
 *  [no-nvidia-modprobe] a suid executable to install kernel modules
 *  [no-wine-files] files to support ngx under WINE
 *  [no-dkms] dynamic kernel modules support. DKMS can be made to work with something like
    ```
-         dkms  --force --dkmstree /opt/nvidia/dkms --sourcetree /opt/nvidia-test/<release>/src -m nvidia/<release>
+		dkms  --force --dkmstree /opt/nvidia/dkms --sourcetree /opt/nvidia-test/<release>/src -m nvidia/<release>
+
    ```
    but might as well just put `nvidia-unbound -K -k KERNEL_VERSION` in an `/etc/kernel-install.d`
    drop-in file. The kernel modules of old releases very often won't compile with new kernels so either approach it of very limited practical use.
-*  [no-kernel-module-source] the source files to compile the kernel module and would mainly be of use with DKMS.
+*  [no-kernel-module-source] the source files to compile the kernel module,
+   which would mainly be of use with DKMS.
 *  [no-libglx-indirect] `libGLX_indirect.so` is just a symlink to
    `libGLX_nvidia.so.<version>` and appears not required with glvnd
 *  [no-install-libglvnd] these are the vendor neutral wrappers and
@@ -168,14 +173,12 @@ Some files are not needed at all and are not installed by default. These are (wi
 
 The installation location can be overridden on a per type basis with
 
-```
-	--override-file-type-destination=<FILE_TYPE>:<destination>
-```
+		--override-file-type-destination=<FILE_TYPE>:<destination>
+
 options and file types can be excluded with
 
-```
-	--exclude=<FILE_TYPE>[,<FILE_TYPE>...]
-```
+
+		--exclude=<FILE_TYPE>[,<FILE_TYPE>...]
 
 If no options to exclude groups or types of files are in effect, all
 files in the manifest are installed (or attempted subject to
@@ -206,7 +209,7 @@ The intention is that system configuration modifications on the root
 file system be minimal and only be required once, when the immutable
 filessystem (if using) is built.  If necessary, overlayfs, bind mounts
 and symbolic links, perhaps set up in initrd can be used to obviate
-the need to modify the root file system at all.
+the need to modify the root file system at all (see [What goes Where](#what_goes_where) above).
 
 ### Identification ###
 It is necessary to identify the correct (or preferred) Nvidia driver
@@ -230,10 +233,10 @@ other X clients are started. The nv-environment.sh drop-in file
 performs this function on Fedora. Other systems may vary.
 
 ### Kernel module loading ###
-Loading the correct kernel module is achieved by `nv-loadmod`. The
-`nvidia-modules.conf` drop-in file ensures that the correct kernel
-module is loaded.  It may be necessary to blacklist nouveau by putting
-`modprobe.blacklist=nouveau` on the kernel command line.
+Loading the correct kernel modules are achieved by `nv-loadmod`. The
+`nvidia-modules.conf` drop-in file ensures that `modprobe` loads the
+correct kernel module.  It may be necessary to blacklist nouveau by
+putting `modprobe.blacklist=nouveau` on the kernel command line.
 
 ### Xserver ###
 The Xserver (`X` or `Xorg`) needs to be started with the
@@ -248,9 +251,9 @@ other configuration to ensure that `Xserver-start` is executed by the
 display manager, rather than `xorg`.
 
 For example, if using the `kdm` display manager, set
-```
-	ServerCmd=/usr/local/bin/Xserver-start
-```
+
+		ServerCmd=/usr/local/bin/Xserver-start
+
 in `/etc/kde/kdm/kdmrc`.
 
 An alternative is to rename xorg to xorg.real, call the wrapper script
@@ -260,25 +263,78 @@ is likely to be undone the next time xorg is upgraded.
 ## Known Limitations and Issues ##
 
 * The Ndvida drivers apparently support Wayland and _Nvidia Unbound_
-installs the necessary components but this is untested. In particular,
+installs the necessary components, but this is untested. In particular,
 any changes required to Wayland configuration have not been
 investigated.
 
 * While _Nvidia Unbound_ allows one image to contain multiple releases
   of the Nividia driver, only one can be selected at a time. This is
   limitation of the kernel modules and not within the scope of this
-  project to fix. If you need multiple Nvidia graphics cards, they all
-  need to have the same compatible driver release.
+  project to fix. If you need multiple Nvidia graphics cards on the
+  same machine, they all need to have the same compatible driver
+  release.
 
 * Uncooperative applications which reset LD_LIBRARY_PATH instead of
   pre-pending to it. The only instance I am aware of is (or was) the
   Zoom video converencing application for Linux. It works by having
-  `ZoomLauncher` mangle the execution environment before executing the
+  `ZoomLauncher` munge the execution environment before executing the
   real `zoom` application. The trick was to rename `zoom` to
   `zoom.real` and create a small `zoom` shell script wrapper which set
   the `LD_LIBRARY_PATH` and executed `zoom.real`.
   
   Such lengths are rarely necessary.
+
+## Troubleshooting ##
+The most common issue is failure to compile a kernel module.
+
+Ensure you have installed the kernel headers and makefiles needed to
+build kernel modules (kernel-devel in Fedora distributions). Examine
+the log files to see what went wrong. In the log file directory
+(/var/log/nvidia) there is a separate log for each kernel version
+build attempted.
+
+Often there is an incompatability between the Nvidia driver code and recent kernels. In that case, the options are
+* find a newer Nvidia driver
+* stick with an older kernel
+* see if you can fix it yourself, or perhaps someone has created a patch you can apply.
+
+Rather than have _Nvidia Unbound_ unpack the Nvidia driver into a temporary directory, which is automatically deleted on completion, it may be more convenient to unpack the Nvidia driver with
+
+        sh NVIDIA-Linux-<arch>-<version>.run -x
+
+You can then inspect the contents, apply patches etc and run _Nvidia Unbound_ with
+
+        nvidia-unbound --use NVIDIA-Linux-<arch>-<version> [OPTIONS] 
+
+There is no standard place to find patches, however, one of the Linux
+distributions or third party packagers may have solved your problem
+and you may be able to find the fix in an issue tracker or git
+repository.
+
+The `--trace -K -k <kernel-version>` options may be helpful. You can
+also `cd` into the kernel directory and run `make` manually.
+
+If the Xserver fails immediately, look at the log file (e.g `/var/log/Xorg.0.log`). Expect strings like:
+```
+	ModulePath set to "/opt/nvidia/<release>/lib64/xorg/modules-nvidia,/usr/lib64/xorg/modules"
+	
+	Loading /opt/nvidia/<release>/lib64/xorg/modules-nvidia/extensions/libglx.so
+```
+and
+```
+	Loading /opt/nvidia/<release>/lib64/xorg/modules-nvidia/drivers/nvidia_drv.so
+```
+
+Check that the nvidia kernel module can be loaded with `modprobe nvidia`. 
+It may be helpful to disable automatic execution of the X server e.g.
+
+        systemctl stop display-manager
+
+and manually execute `X` with appropriate environment and command line arguments (see [System configuration](#system_configuration) above).
+
+If the kernel modules load and the X server runs but specific applications fail, then most likely `LD_LIBRARY_PATH` is not set. If the application works when run from the command line, but not when started from a GUI, you need to identify the parent process and check that it has LD_LIBRARY_PATH in its environment. Try `ps -p <pid> wwe`.
+
+Also consider that LD_LIBARY_PATH may be reset (see the discussion in [Known Limitation and Issues](#known_limitations_and_issues) above), and that there are situations where LD_LIBRARY_PATH is ignored (see `man 8 ld.so`).
 
 ## Bugs ##
 
