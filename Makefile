@@ -39,8 +39,7 @@ nvidia-unbound:	nvidia-unbound.sh VERSION
 	@chmod 0755 nvidia-unbound
 
 install: all
-	mkdir -p $(DESTDIR}$(bindir)
-	mkdir -p $(DESTDIR}$(mandir)/man1
+	install -d -m 0755  $(DESTDIR)$(bindir) $(DESTDIR)$(mandir)/man1
 	install -m 0755 nvidia-unbound $(DESTDIR)$(bindir)/
 	install -m 0644 nvidia-unbound.1  $(DESTDIR)$(mandir)/man1/
 
