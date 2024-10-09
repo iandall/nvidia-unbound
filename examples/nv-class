@@ -1,0 +1,27 @@
+#!/bin/sh
+NV_TABLE="/usr/local/lib/nv_table"
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+/sbin/lspci -vnkmm | awk -v nv_table="$NV_TABLE" '
+BEGIN {
+    
+    gsub(/_/, "-", pci_mod);
+    while ((getline < nv_table) > 0) {
+	if ($0 ~ /^#/) continue;
+	if ($0 ~ /^$/) continue;
+	nv_class[$1] = "" $2;
+    }
+}
+	
+/^Slot:/,/^$/ {
+    data[$1] = $2;
+    if ($0 == "" ) {
+	key= data["Vendor:"] ":" data["Device:"];
+	if (nv_class[key] != "")
+           value = nv_class[key];
+	data["Vendor:"] = "";
+    }
+}
+END {
+    if (value)
+	print value;
+}'

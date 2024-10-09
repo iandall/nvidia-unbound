@@ -1,0 +1,20 @@
+#!/bin/sh
+[ "$(arch)" = x86_64 ] && ext=64
+if [ -e /run/session-environment ]; then
+    . /run/session-environment
+    if [[ -n $NV_MAJ ]]; then
+	LD_LIBRARY_PATH="$NV_LIBRARY_PATH:$LD_LIBRARY_PATH"
+	MOD_PATH=$NV_LIBRARY_PATH/xorg/modules-nvidia,/usr/lib$ext/xorg/modules
+	XORGCONFIG=/etc/X11/xorg-nvidia.conf
+	export XORGCONFIG
+	modprobe nvidia_drm
+    fi
+fi
+
+
+export LD_LIBRARY_PATH
+X_SERVER=/lib/systemd/systemd-multi-seat-x-foo
+if [ ! -e $X_SERVER ]; then
+    X_SERVER=/usr/bin/X
+fi
+exec $X_SERVER ${MOD_PATH:+-modulepath $MOD_PATH} "$@"
