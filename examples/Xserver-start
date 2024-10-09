@@ -4,7 +4,7 @@ if [ -e /run/session-environment ]; then
     . /run/session-environment
     if [[ -n $NV_MAJ ]]; then
 	LD_LIBRARY_PATH="$NV_LIBRARY_PATH:$LD_LIBRARY_PATH"
-	MOD_PATH=$NV_LIBRARY_PATH/xorg/modules-nvidia,/usr/lib$ext/xorg/modules
+	MOD_PATH=$NV_LIBRARY_PATH/xorg/modules,/usr/lib$ext/xorg/modules
 	XORGCONFIG=/etc/X11/xorg-nvidia.conf
 	export XORGCONFIG
 	modprobe nvidia_drm
